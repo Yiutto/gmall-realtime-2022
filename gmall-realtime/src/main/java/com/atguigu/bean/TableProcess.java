@@ -1,4 +1,4 @@
-package com.atguigu.gmall.realtime.bean;
+package com.atguigu.bean;
 import lombok.Data;
 
 @Data
