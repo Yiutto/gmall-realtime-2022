@@ -16,6 +16,7 @@ import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
 
 public class DimApp {
@@ -100,6 +101,11 @@ public class DimApp {
 
         // TODO 8.将数据写到Phoenix
         dimDS.print("<<<<<<<<");
+        // jdbc? 先给sql再导数，各个维度表的列数不一致，不适合jdbc，jdbc适合单表写入。
+        dimDS.addSink(new
+        )
+
+
         // TODO 9.启动任务
         env.execute("DimApp");
     }
