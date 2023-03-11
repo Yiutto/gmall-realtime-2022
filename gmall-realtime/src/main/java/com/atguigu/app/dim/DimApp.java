@@ -2,6 +2,7 @@ package com.atguigu.app.dim;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.atguigu.app.func.DimSinkFunction;
 import com.atguigu.app.func.TableProcessFunction;
 import com.atguigu.bean.TableProcess;
 import com.atguigu.util.MyKafkaUtil;
@@ -19,6 +20,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
 
+/**
+ *  数据流： web/app -> nginx -> 业务服务器 -> Mysql(binlog) -> Maxwell -> Kafka(ods) -> FlinkApp -> Phoenix
+ *  程序：mock -> Mysql(binlog) -> Maxwell -> Kafka(ZK) -> DimApp(FlinkCDC/Mysql) -> Phoenix(HBASE/ZK/HDFS)
+ */
 public class DimApp {
     public static void main(String[] args) throws Exception {
         // TODO 1.获取执行环境
@@ -102,9 +107,7 @@ public class DimApp {
         // TODO 8.将数据写到Phoenix
         dimDS.print("<<<<<<<<");
         // jdbc? 先给sql再导数，各个维度表的列数不一致，不适合jdbc，jdbc适合单表写入。
-        dimDS.addSink(new
-        )
-
+        dimDS.addSink(new DimSinkFunction());
 
         // TODO 9.启动任务
         env.execute("DimApp");

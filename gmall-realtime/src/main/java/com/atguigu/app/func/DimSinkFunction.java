@@ -31,6 +31,7 @@ public class DimSinkFunction extends RichSinkFunction<JSONObject> {
         // 写出数据
         String sinkTable = value.getString("sinkTable");
         JSONObject data = value.getJSONObject("data");
+        // 只依赖Phoenix，如果还需要查询mysql，可以另行处理
         PhoenixUtil.upsertValues(connection, sinkTable, data);  // 这里不用try catch 报错直接挂了
         // 归还连接
         connection.close();
