@@ -19,7 +19,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
 public class DimApp {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         // TODO 1.获取执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // 生产环境中设置为kafka主题的分区数
@@ -37,12 +37,12 @@ public class DimApp {
         System.setProperty("HADOOP_USER_NAME", "hadoop");
         **/
 
-        // TODO 2.读取Kafka topic_db主题数据创建主流
+        // TODO 2.读取Kafka topic_db主题数据创建【主流】
         String topic = "topic_db";
         String groupId = "dim_app_2022";
         DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtil.getFlinkKafkaConsumer(topic, groupId));
 
-        // TODO 3.过滤非json数据，保留新增、变化以及初始化数据，并将数据转换为json格式
+        // TODO 3.过滤非json数据，保留新增、变化以及初始化数据，并将数据转换为json格式【过滤流】
         // 新增 {"database":"gmall","table":"base_trademark","type":"insert","ts":1678331684,"xid":144025,"commit":true,"data":{"id":12,"tm_name":"yiutto","logo_url":"/static/yt.jpg"}}
         // 修改 {"database":"gmall","table":"base_trademark","type":"update","ts":1678331738,"xid":144149,"commit":true,"data":{"id":12,"tm_name":"yiutto","logo_url":"/static/lle.jpg"},"old":{"logo_url":"/static/yt.jpg"}}
         // 删除 {"database":"gmall","table":"base_trademark","type":"delete","ts":1678331805,"xid":144301,"commit":true,"data":{"id":12,"tm_name":"yiutto","logo_url":"/static/lle.jpg"}}
@@ -74,7 +74,7 @@ public class DimApp {
         });
 
 
-        // TODO 4.使用FlinkCDC读取MySQL配置信息表创建配置流
+        // TODO 4.使用FlinkCDC读取MySQL配置信息表创建【配置流】
         MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname("10.20.1.231")
                 .port(3306)
@@ -88,16 +88,19 @@ public class DimApp {
 
         DataStreamSource<String> mysqlSourceDS = env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MysqlSource");
 
-        // TODO 5.将配置流处理为广播流
+        // TODO 5.将配置流处理为【广播流】
         MapStateDescriptor<String, TableProcess> mapStateDescriptor = new MapStateDescriptor("map-state", String.class, TableProcess.class);
         BroadcastStream<String> broadcastStream = mysqlSourceDS.broadcast(mapStateDescriptor);
 
-        // TODO 6.连接主流和广播流
+        // TODO 6.连接【过滤流和广播流】
         BroadcastConnectedStream<JSONObject, String> connectedStream = filterJsonDS.connect(broadcastStream);
 
-        // TODO 7.处理连接流，根据配置信息处理主流数据
-        connectedStream.process(new TableProcessFunction(mapStateDescriptor));
+        // TODO 7.处理【连接流】，根据配置信息处理主流数据
+        SingleOutputStreamOperator<JSONObject> dimDS = connectedStream.process(new TableProcessFunction(mapStateDescriptor));
+
         // TODO 8.将数据写到Phoenix
+        dimDS.print("<<<<<<<<");
         // TODO 9.启动任务
+        env.execute("DimApp");
     }
 }

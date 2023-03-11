@@ -1,7 +1,7 @@
 package com.atguigu.common;
 
 public class GmallConfig {
-    // phoenix 库名
+    // phoenix 库名  create schema GMALL_REALTIME;
     public static final String HBASE_SCHEMA = "GMALL_REALTIME";
 
     // phoenix驱动

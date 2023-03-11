@@ -5,6 +5,7 @@ import com.atguigu.bean.TableProcess;
 import com.atguigu.common.GmallConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.util.Collector;
@@ -14,6 +15,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.*;
 
 public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, String, JSONObject> {
 
@@ -117,12 +119,68 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
 
     }
 
+    /**
+     * value: {"database":"gmall","table":"base_trademark","type":"insert","ts":1678331684,"xid":144025,"commit":true,"data":{"id":12,"tm_name":"yiutto","logo_url":"/static/yt.jpg"}}
+     * @param value The stream element.
+     * @param ctx A {@link ReadOnlyContext} that allows querying the timestamp of the element,
+     *     querying the current processing/event time and updating the broadcast state. The context
+     *     is only valid during the invocation of this method, do not store it.
+     * @param out The collector to emit resulting elements to
+     * @throws Exception
+     */
     @Override
     public void processElement(JSONObject value, BroadcastProcessFunction<JSONObject, String, JSONObject>.ReadOnlyContext ctx, Collector<JSONObject> out) throws Exception {
 
         // TODO 1.获取广播的配置数据
-        // TODO 2.过滤字段filterColumn
-        // TODO 3.补充SinkTable字段
+        ReadOnlyBroadcastState<String, TableProcess> broadcastState = ctx.getBroadcastState(mapStateDescriptor);
+        String table = value.getString("table");
+        TableProcess tableProcess = broadcastState.get(table);  // null?
+
+        if (tableProcess != null) {
+            // TODO 2.过滤字段filterColumn
+            filterColumn(value.getJSONObject("data"), tableProcess.getSinkColumns());
+
+            // TODO 3.补充SinkTable字段，并写出到流中
+            value.put("sinkTable", tableProcess.getSinkTable());
+            out.collect(value);
+
+        } else { // 关联的不是自己需要的维度表
+            System.out.println("找不到对应的key：" + table);
+        }
+
+    }
+
+    /**
+     * 过滤字段
+     * @param data ：{"id":12,"tm_name":"yiutto","logo_url":"/static/yt.jpg"}
+     * @param sinkColumns "id,name"
+     */
+    private void filterColumn(JSONObject data, String sinkColumns) {
+
+        // 切分sinkColumns
+        String[] columns = sinkColumns.split(",");
+        List<String> columnList = Arrays.asList(columns);
+        /**
+        // 这里用entrySet而不用keySet是为了方便删除键值对
+        Set<Map.Entry<String, Object>> entries = data.entrySet();
+        Iterator<Map.Entry<String, Object>> iterator = entries.iterator();
+        while(iterator.hasNext()){
+            Map.Entry<String, Object> next = iterator.next();
+            //  data: {"id":xx, "name":xxx, "tm_name":xxx}
+            // sinkColumns: "id,tm_name"
+            if (!columnList.contains(next.getKey())){
+                iterator.remove();
+
+            }
+        }
+        **/
+
+        // 这里用entrySet而不用keySet是为了方便删除键值对
+        Set<Map.Entry<String, Object>> entries = data.entrySet();
+        //  data: {"id":xx, "name":xxx, "tm_name":xxx}
+        // sinkColumns: "id,tm_name"
+        entries.removeIf(next -> !columnList.contains(next.getKey()));
+
 
     }
 
