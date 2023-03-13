@@ -23,6 +23,10 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+/**
+ * 数据流: web/app -> Nginx -> 日志服务器（.log）[node01/node02] -> Flume[node01/node02]  -> Kafka(ODS) -> FlinkApp -> Kafka(DWD)
+ * 程序： Mock(lg.sh) -> Flume(f1) -> Kafka(ZK) -> BaseLogApp -> Kafka(ZK)
+ */
 public class BaseLogApp {
     public static void main(String[] args) throws Exception {
         // TODO 1.获取执行环境
@@ -114,10 +118,10 @@ public class BaseLogApp {
         // 错误（启动错误、页面错误）
         // 启动
         // 页面-（曝光、动作）
-        OutputTag<String> startTag = new OutputTag<>("start");
-        OutputTag<String> displayTag = new OutputTag<>("display");
-        OutputTag<String> actionTag = new OutputTag<>("action");
-        OutputTag<String> errorTag = new OutputTag<>("error");
+        OutputTag<String> startTag = new OutputTag<String>("start"){};
+        OutputTag<String> displayTag = new OutputTag<String>("display"){};
+        OutputTag<String> actionTag = new OutputTag<String>("action"){};
+        OutputTag<String> errorTag = new OutputTag<String>("error"){};
         SingleOutputStreamOperator<String> pageDS = jsonObjWithNewFlagDS.process(new ProcessFunction<JSONObject, String>() {
             @Override
             public void processElement(JSONObject value, ProcessFunction<JSONObject, String>.Context ctx, Collector<String> out) throws Exception {
@@ -135,7 +139,7 @@ public class BaseLogApp {
                 // TODO b.尝试获取启动信息
                 String start = value.getString("start");
                 if (start != null) {
-                    // 将数据写到error侧输出流
+                    // 将数据写到start侧输出流
                     ctx.output(startTag, value.toJSONString());
                 } else {
                     // 获取公共信息&页面id&时间戳，【ts，common，page_id】
@@ -176,6 +180,8 @@ public class BaseLogApp {
                     // 移除曝光和动作信息，保存页面日志写到主流
                     value.remove("displays");
                     value.remove("actions");
+
+                    // TODO e.剩下就是页面数据
                     out.collect(value.toJSONString());
                 }
 
@@ -193,6 +199,18 @@ public class BaseLogApp {
         displayDS.print("Display>>>>");
         actionDS.print("Action>>>>");
         errorDS.print("error>>>>");
+
+        String page_topic = "dwd_traffic_page_log";
+        String start_topic = "dwd_traffic_start_log";
+        String display_topic = "dwd_traffic_display_log";
+        String action_topic = "dwd_traffic_action_log";
+        String error_topic = "dwd_traffic_error_log";
+
+        pageDS.addSink(MyKafkaUtil.getFlinkKafkaProducer(page_topic));
+        startDS.addSink(MyKafkaUtil.getFlinkKafkaProducer(start_topic));
+        displayDS.addSink(MyKafkaUtil.getFlinkKafkaProducer(display_topic));
+        actionDS.addSink(MyKafkaUtil.getFlinkKafkaProducer(action_topic));
+        errorDS.addSink(MyKafkaUtil.getFlinkKafkaProducer(error_topic));
 
         // TODO 9.启动任务
         env.execute("BaseLogApp");
