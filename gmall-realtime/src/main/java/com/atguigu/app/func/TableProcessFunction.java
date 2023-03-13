@@ -64,7 +64,7 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
 
         PreparedStatement preparedStatement = null;
         try {
-            // 处理特殊字段
+            // 处理特殊字段，主键
             if (sinkPk == null || "".equals(sinkPk)){
                 sinkPk = "id";
             }
