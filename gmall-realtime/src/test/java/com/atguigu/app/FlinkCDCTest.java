@@ -1,4 +1,4 @@
-package com.atguigu;
+package com.atguigu.app;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;

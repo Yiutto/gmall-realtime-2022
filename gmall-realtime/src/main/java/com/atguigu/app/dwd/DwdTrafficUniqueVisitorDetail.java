@@ -24,6 +24,7 @@ import org.apache.flink.util.Collector;
 /**
  * 数据流: web/app -> Nginx -> 日志服务器（.log）[node01/node02] -> Flume[node01/node02]  -> Kafka(ODS) -> FlinkApp[BaseLogApp] -> Kafka(DWD) -> FlinkApp[] -> Kafka(DWD)
  * 程序： Mock(lg.sh) -> Flume(f1) -> Kafka(ZK) -> BaseLogApp -> Kafka(ZK) -> DwdTrafficUniqueVisitorDetail -> Kafka(zk)
+ * 需求：过滤页面数据中的独立访客访问记录【独立访客的页面必定是会话起始页面，last_page_id为null】
  **/
 public class DwdTrafficUniqueVisitorDetail {
     public static void main(String[] args) throws Exception {
@@ -40,12 +41,12 @@ public class DwdTrafficUniqueVisitorDetail {
         // 1.2 设置状态后端
         env.setStateBackend(new HashMapStateBackend());
         env.getCheckpointConfig().setCheckpointStorage("hdfs://10.20.1.231:8020/flink_2022/ck");
-        System.setProperty("HADOOP_USER_HOME", "hadoop");
+        System.setProperty("HADOOP_USER_NAME", "hadoop");
         **/
 
         // TODO 2.读取kafka，页面日志主题创建流
         String topic = "dwd_traffic_page_log";
-        String groupId = "Unique_Visitor_Detail";
+        String groupId = "unique_Visitor_Detail";
         DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtil.getFlinkKafkaConsumer(topic, groupId));
 
         // TODO 3.过滤掉上一跳页面不为nulll的数据，并将每行数据转换为json对象 (又要过滤又要转换，用flatMap)
