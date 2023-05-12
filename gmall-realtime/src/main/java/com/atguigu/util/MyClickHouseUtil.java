@@ -1,5 +1,6 @@
 package com.atguigu.util;
 
+import com.atguigu.bean.TransientSink;
 import com.atguigu.common.GmallConfig;
 import lombok.SneakyThrows;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
@@ -40,16 +41,23 @@ public class MyClickHouseUtil {
 
                 // 获取并遍历属性
                 Field[] declaredFields = tClz.getDeclaredFields();
+                int offset = 0;
                 for (int i = 0; i < declaredFields.length; i++) {
                     // 读取单个属性
                     Field field = declaredFields[i];
                     field.setAccessible(true);  // 私有拿不到，需要设置
 
+                    // 尝试获取字段上的自定义注解
+                    TransientSink transientSink = field.getAnnotation(TransientSink.class);
+                    if (transientSink != null) {
+                        offset++;
+                        continue;
+                    }
                     // 获取属性值
                     Object value = field.get(t);
 
                     // 给占位符设置
-                    preparedStatement.setObject(i+1, value);
+                    preparedStatement.setObject(i + 1 - offset, value);
 
                 }
 
