@@ -18,6 +18,13 @@ import java.util.Properties;
 
 public class MyKafkaUtil {
     private static final String KAFKA_SERVER = "10.20.1.231:9092";
+
+    /**
+     * 获取flink需要的kafka消费者相关信息
+     * @param topic
+     * @param groupId
+     * @return
+     */
     public static FlinkKafkaConsumer<String> getFlinkKafkaConsumer(String topic, String groupId){
         Properties properties = new Properties();
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -55,6 +62,12 @@ public class MyKafkaUtil {
         return new FlinkKafkaProducer<String>(KAFKA_SERVER, topic, new SimpleStringSchema());
     }
 
+    /**
+     * 获取flink需要的kafka生产者相关信息
+     * @param topic
+     * @param defaultTopic
+     * @return
+     */
     public static FlinkKafkaProducer<String> getFlinkKafkaProducer(String topic, String defaultTopic) {
         Properties properties = new Properties();
         properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_SERVER);
@@ -69,4 +82,64 @@ public class MyKafkaUtil {
             }
         }, properties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
     }
+
+    /**
+     * kafka-Source DDL相关信息
+     * @param topic  数据源主题
+     * @param groupId 消费者组
+     * @return 拼接好的kafka数据源DDL语句
+     */
+    public static String getKafkaDDL(String topic, String groupId) {
+        return "with ('connector' = 'kafka', " +
+                "  'topic' = '" + topic + "', " +
+                "  'properties.bootstrap.servers' = '" + KAFKA_SERVER + "', " +
+                "  'properties.group.id' = '" + groupId + "', " +
+                "  'scan.startup.mode' = 'group-offsets', " +
+                "  'format' = 'json' " +
+                ")";
+    }
+
+    /**
+     * Kafka-Sink DDL 语句
+     * @param topic 输出到kafka的目标主题
+     * @return 拼接好的kafkaSinkDDL语句
+     */
+    public static String getKafkaSinkDDL(String topic) {
+        return "with ('connector' = 'kafka', " +
+                "  'topic' = '" + topic + "', " +
+                "  'properties.bootstrap.servers' = '" + KAFKA_SERVER + "', " +
+                "  'format' = 'json' " +
+                ")";
+    }
+
+    /**
+     * 获取topic_db 主题的 flink-sql连接kafka相关建表语句
+     * @param groupId
+     * @return 拼接好的kafka数据源DDL语句
+     */
+    public static String getTopicDb(String groupId) {
+        return "        create table topic_db (  " +
+                "    `database` string,  " +
+                "    `table` string,  " +
+                "    `type` string,  " +
+                "    `data` map<string, string>,  " +
+                "    `old` map<string, string>,  " +
+                "    `pt` as proctime()  " +
+                " ) " + getKafkaDDL("topic_db", groupId);
+    }
+
+    /**
+     * Upsert Kafka Sink DDL 语句
+     * @param topic 输出到kafka的目标主题
+     * @return 拼接好的Upsert Kafka Sink DDL
+     */
+    public static String getUpsertKafkaDDL(String topic) {
+        return "with ('connector' = 'upsert-kafka', " +
+                "  'topic' = '" + topic + "', " +
+                "  'properties.bootstrap.servers' = '" + KAFKA_SERVER + "', " +
+                "  'key.format' = 'json', " +
+                "  'value.format' = 'json' " +
+                ")";
+    }
+
 }
